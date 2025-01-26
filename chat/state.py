@@ -26,6 +26,9 @@ class State(rx.State):
     # The current chat name.
     current_chat = "Intros"
 
+    img: list[str] = []
+    
+
     # The current question.
     question: str
 
@@ -97,18 +100,32 @@ class State(rx.State):
         for qa in self.chats[self.current_chat]:
             messages.append({"role": "user", "content": qa.question})
             messages.append({"role": "assistant", "content": qa.answer})
-
+        
+        # Update image paths to include full path
+        full_path_images = [f"/Users/lianasoima/Documents/women-in-ai-hackathon/uploaded_files{img}" for img in self.img]
+        print("img", full_path_images)
         # Create the prompt from chat history
-        prompt = "You are a friendly chatbot. Respond in markdown.\n\n"
+        prompt = """
+You are an expert in U.S. environmental laws, specializing in the National Environmental Policy Act (NEPA) and the California Environmental Quality Act (CEQA). Your expertise includes understanding compliance requirements, evaluating environmental impact assessments (EIAs), and identifying potential regulatory risks for federal, state, and local projects.
+
+When I upload a plan or document, your task is to:
+
+Analyze the project and determine which parts are subject to NEPA or CEQA compliance.
+Provide guidance on required documents, such as Environmental Impact Statements (EISs), Environmental Assessments (EAs), Initial Studies (IS), or Environmental Impact Reports (EIRs).
+Highlight areas where the plan may fall short of compliance with NEPA or CEQA regulations.
+Suggest practical recommendations for ensuring environmental compliance, including alternatives, mitigation measures, or adjustments to the plan.
+Identify any additional federal, state, or local regulatory considerations, such as zoning, seismic safety, or green building standards, relevant to the project.
+Speak in clear and actionable language and include references to specific legal or regulatory requirements where applicable.
+"""
         for msg in messages[:-1]:  # Exclude the last empty answer
             prompt += f"{msg['role']}: {msg['content']}\n"
         prompt += f"user: {question}"
-
+        print("prompt sent")
         try:
             # Stream the response from Ollama
             stream = ollama.chat(
                 model='llama3.2-vision',  # or your preferred model
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=[{'role': 'user', 'content': prompt,'images': full_path_images},],
                 stream=True,
             )
 
@@ -126,11 +143,11 @@ class State(rx.State):
             self.chats[self.current_chat][-1].answer = f"Error: {str(e)}"
             self.chats = self.chats
             yield
-
+        print("prompt received")
         # Toggle the processing flag
         self.processing = False
 
-    img: list[str]
+    
 
     @rx.event
     async def handle_upload(
@@ -145,9 +162,9 @@ class State(rx.State):
             upload_data = await file.read()
             outfile = rx.get_upload_dir() / file.filename
 
-            # Save the file.
-            with outfile.open("wb") as file_object:
-                file_object.write(upload_data)
+            # # # Save the file.
+            # with outfile.open("wb") as file_object:
+            #     file_object.write(upload_data)
 
             # Update the img var.
             self.img.append(file.filename)
